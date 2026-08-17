@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>The Oracle's Trial - AI Document Assistant</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}" href="../static/css/style.css"/>
+</head>
+<body>
+
+<header class="app-header">
+    <h1>THE ORACLE'S TRIAL</h1>
+    <p class="subtitle">AI DOCUMENT ASSISTANT</p>
+    <p class="tagline">Ask questions about your company documents.</p>
+</header>
+
+<main class="app-main">
+
+    <section class="card">
+        <h2>Upload Document</h2>
+        <form id="upload-form">
+            <input type="file" id="file-input" name="file" accept="application/pdf" required/>
+            <button type="submit" id="upload-button">Upload Document</button>
+        </form>
+        <p id="upload-status" class="status"></p>
+    </section>
+
+    <section class="card">
+        <h2>Ask The Oracle</h2>
+        <form id="ask-form">
+            <input type="text" id="question-input" name="question"
+                   placeholder="What is the annual leave policy?" required/>
+            <button type="submit" id="ask-button">Ask Oracle</button>
+        </form>
+    </section>
+
+    <section class="card">
+        <h2>Answer</h2>
+        <p id="answer-text" class="placeholder">Upload a document and ask a question to see an answer here.</p>
+    </section>
+
+    <section class="card">
+        <h2>Sources</h2>
+        <ul id="sources-list" class="sources"></ul>
+    </section>
+
+</main>
+
+<footer class="app-footer">
+    <p>The Oracle's Trial &mdash; a simple Retrieval-Augmented Generation demo built with Spring Boot and LangChain4j.</p>
+</footer>
+
+<script th:src="@{/js/app.js}" src="../static/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+{
+  "info": {
+    "name": "The Oracle's Trial",
+    "description": "Requests for testing the four Oracle's Trial API endpoints: health, document upload, search, and ask.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/health"
+      }
+    },
+    {
+      "name": "Upload Document",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/documents/upload",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "sample-documents/hr-policy.pdf"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Search",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/search",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"question\": \"What is the annual leave policy?\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Ask",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/ask",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"question\": \"How many annual leave days do employees receive?\"\n}"
+        }
+      }
+    }
+  ]
+}

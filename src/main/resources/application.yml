@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: oracle-trial
+  servlet:
+    multipart:
+      # Company PDFs (policies, manuals) are often a few MB - the Spring Boot
+      # default of 1MB is too small for real documents.
+      max-file-size: 25MB
+      max-request-size: 25MB
+
+# API key and model names for the OpenAI-compatible embedding/LLM provider.
+# Never hardcode real values here - they are injected from environment
+# variables (see .env.example). The model names have sensible defaults so
+# the app still starts if you only set OPENAI_API_KEY.
+openai:
+  api-key: ${OPENAI_API_KEY:}
+  embedding-model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
+  chat-model: ${OPENAI_CHAT_MODEL:gpt-4o-mini}
+
+# Qdrant vector database connection. QDRANT_URL should include the scheme
+# and gRPC port, e.g. http://localhost:6334 for a local instance, or
+# https://xyz-example.cloud.qdrant.io:6334 for Qdrant Cloud.
+qdrant:
+  url: ${QDRANT_URL:http://localhost:6334}
+  api-key: ${QDRANT_API_KEY:}
+  collection: ${QDRANT_COLLECTION:oracle_trial_documents}
+
+logging:
+  level:
+    com.oracletrial: INFO
