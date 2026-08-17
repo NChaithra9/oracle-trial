@@ -1,0 +1,119 @@
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+.app-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.app-header h1 {
+  margin: 0 0 8px;
+  font-size: 2.2rem;
+  background: linear-gradient(90deg, #a78bfa, #60a5fa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.muted {
+  color: #9aa0ac;
+  font-size: 0.95rem;
+}
+
+.error {
+  color: #f87171;
+}
+
+.card {
+  background: #171a23;
+  border: 1px solid #262b38;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.card h2 {
+  margin-top: 0;
+  font-size: 1.15rem;
+}
+
+input[type="file"] {
+  margin-top: 8px;
+  color: #e7e9ee;
+}
+
+.doc-list {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+}
+
+.doc-list li {
+  padding: 8px 0;
+  border-top: 1px solid #262b38;
+}
+
+.doc-list li:first-child {
+  border-top: none;
+}
+
+.question-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+textarea {
+  width: 100%;
+  background: #0f1117;
+  color: #e7e9ee;
+  border: 1px solid #262b38;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 1rem;
+  resize: vertical;
+}
+
+button {
+  background: linear-gradient(90deg, #7c3aed, #2563eb);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-size: 1rem;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.answer-text {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.citations {
+  margin-top: 16px;
+  border-top: 1px solid #262b38;
+  padding-top: 12px;
+}
+
+.citations h3 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  color: #9aa0ac;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.citations ul {
+  margin: 0;
+  padding-left: 20px;
+}

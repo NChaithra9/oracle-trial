@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: oracle_qdrant
+    ports:
+      - "6333:6333" # REST API
+      - "6334:6334" # gRPC API (unused here, but exposed by default)
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  qdrant_data:

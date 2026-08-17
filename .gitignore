@@ -1,0 +1,27 @@
+# ==== Secrets ====
+.env
+backend/.env
+
+# ==== Java / Maven ====
+backend/target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# ==== Node / React ====
+frontend/node_modules/
+frontend/build/
+frontend/.env.local
+
+# ==== IDE ====
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# ==== OS ====
+.DS_Store
+Thumbs.db
+
+# ==== Qdrant local storage (if run outside docker) ====
+qdrant_storage/
