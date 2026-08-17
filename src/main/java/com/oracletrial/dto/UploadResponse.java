@@ -1,18 +1,15 @@
 package com.oracletrial.dto;
 
-import com.oracletrial.model.DocumentChunk;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-
-import java.util.List;
 
 /**
  * Response returned by the document upload endpoint.
  *
- * <p>Shows the chunks generated from an uploaded document, plus a summary
- * of the embeddings created for them, so the pipeline can be inspected
- * directly in Postman before Qdrant storage is added in a later
- * milestone.</p>
+ * <p>Confirms that a document was processed successfully and shows how
+ * many chunks it was split into. The chunk text itself is not echoed back
+ * here - it now lives in Qdrant, where {@code /api/search} and
+ * {@code /api/ask} can retrieve it.</p>
  */
 @Getter
 @AllArgsConstructor
@@ -21,12 +18,9 @@ public class UploadResponse {
     /** Name of the uploaded document. */
     private final String document;
 
-    /** How many chunks the document was split into. */
-    private final int chunkCount;
+    /** How many chunks the document was split into and stored in Qdrant. */
+    private final int chunks;
 
-    /** Size of each embedding vector, e.g. 1536. Same for every chunk. */
-    private final int embeddingDimension;
-
-    /** Chunks generated from the document's cleaned text. */
-    private final List<DocumentChunk> chunks;
+    /** Human-readable status message. */
+    private final String message;
 }

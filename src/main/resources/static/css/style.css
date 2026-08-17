@@ -1,0 +1,162 @@
+/*
+ * The Oracle's Trial - stylesheet
+ *
+ * Kept intentionally simple: one accent color, a light background, and a
+ * card layout. No animation libraries, no build step - just plain CSS so
+ * the whole UI stays easy to read for a beginner project.
+ */
+
+:root {
+    --color-bg: #f4f5f7;
+    --color-card: #ffffff;
+    --color-border: #e0e2e7;
+    --color-text: #1f2430;
+    --color-muted: #6b7280;
+    --color-accent: #4338ca;
+    --color-accent-dark: #312a91;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+.app-header {
+    background: var(--color-accent);
+    color: #ffffff;
+    text-align: center;
+    padding: 2.5rem 1rem 2rem;
+}
+
+.app-header h1 {
+    margin: 0;
+    font-size: 2rem;
+    letter-spacing: 0.08em;
+}
+
+.app-header .subtitle {
+    margin: 0.35rem 0 0;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    opacity: 0.9;
+}
+
+.app-header .tagline {
+    margin: 0.75rem 0 0;
+    font-size: 0.95rem;
+    opacity: 0.85;
+}
+
+.app-main {
+    max-width: 720px;
+    margin: -2rem auto 2rem;
+    padding: 0 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.card {
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(31, 36, 48, 0.06);
+    padding: 1.5rem;
+}
+
+.card h2 {
+    margin: 0 0 1rem;
+    font-size: 1.1rem;
+    color: var(--color-accent-dark);
+}
+
+.card form {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+input[type="file"],
+input[type="text"] {
+    flex: 1 1 260px;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+
+button {
+    background: var(--color-accent);
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.6rem 1.25rem;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.15s ease-in-out;
+}
+
+button:hover {
+    background: var(--color-accent-dark);
+}
+
+button:disabled {
+    background: var(--color-muted);
+    cursor: not-allowed;
+}
+
+.status {
+    margin: 0.85rem 0 0;
+    font-size: 0.9rem;
+    color: var(--color-muted);
+}
+
+.status.success {
+    color: #157a3d;
+}
+
+.status.error {
+    color: #b3261e;
+}
+
+#answer-text {
+    margin: 0;
+    line-height: 1.5;
+}
+
+.placeholder {
+    color: var(--color-muted);
+}
+
+.sources {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.sources li {
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.9rem;
+}
+
+.sources li strong {
+    color: var(--color-accent-dark);
+}
+
+.app-footer {
+    text-align: center;
+    color: var(--color-muted);
+    font-size: 0.8rem;
+    padding: 1rem;
+}
