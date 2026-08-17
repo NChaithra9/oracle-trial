@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: oracle-trial
+
+# API key for the OpenAI-compatible embedding/LLM provider.
+# Never hardcode the real key here - it is injected from the OPENAI_API_KEY
+# environment variable (see .env.example).
+openai:
+  api-key: ${OPENAI_API_KEY}
