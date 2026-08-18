@@ -2,17 +2,22 @@ package com.oracle.trial.service;
 
 import com.oracle.trial.model.AnswerResponse;
 import com.oracle.trial.model.Citation;
+import com.oracle.trial.model.DocumentSummary;
 import com.oracle.trial.model.UploadResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 
 /**
@@ -60,7 +65,24 @@ public class RagService {
 
     public UploadResponse processUpload(MultipartFile file) throws IOException {
         String documentName = file.getOriginalFilename();
-        Map<Integer, String> pageTextByNumber = pdfService.extractTextByPage(file);
+        byte[] fileBytes = file.getBytes();
+        String fileHash = sha256Hex(fileBytes);
+
+        // Same file content uploaded before (regardless of what it's named
+        // this time)? Skip re-chunking, re-embedding, and re-storing it -
+        // that would just waste OpenAI API calls and create duplicate chunks.
+        long alreadyStoredChunks = qdrantService.countByPayloadField("fileHash", fileHash);
+        if (alreadyStoredChunks > 0) {
+            return new UploadResponse(
+                    "This exact document was already uploaded before - skipped re-processing.",
+                    documentName,
+                    0,
+                    (int) alreadyStoredChunks,
+                    true
+            );
+        }
+
+        Map<Integer, String> pageTextByNumber = pdfService.extractTextByPage(fileBytes);
 
         int chunkCount = 0;
         for (Map.Entry<Integer, String> pageEntry : pageTextByNumber.entrySet()) {
@@ -75,12 +97,12 @@ public class RagService {
 
                 List<Float> vector = embeddingService.embed(chunkText);
 
-                Map<String, Object> payload = Map.of(
-                        "documentName", documentName,
-                        "pageNumber", pageNumber,
-                        "chunkIndex", chunkIndex,
-                        "text", chunkText
-                );
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("documentName", documentName);
+                payload.put("pageNumber", pageNumber);
+                payload.put("chunkIndex", chunkIndex);
+                payload.put("text", chunkText);
+                payload.put("fileHash", fileHash);
 
                 qdrantService.upsertPoint(UUID.randomUUID().toString(), vector, payload);
                 chunkCount++;
@@ -91,8 +113,44 @@ public class RagService {
                 "Document processed successfully",
                 documentName,
                 pageTextByNumber.size(),
-                chunkCount
+                chunkCount,
+                false
         );
+    }
+
+    /**
+     * Rebuilds the list of already-uploaded documents directly from what's
+     * stored in Qdrant, so it's accurate even after the backend restarts or
+     * the browser page is refreshed - nothing is kept only in memory.
+     */
+    public List<DocumentSummary> listDocuments() {
+        List<Map<String, Object>> payloads = qdrantService.scrollAllPayloads();
+
+        Map<String, Set<Integer>> pageNumbersByDocument = new LinkedHashMap<>();
+        Map<String, Integer> chunkCountByDocument = new LinkedHashMap<>();
+
+        for (Map<String, Object> payload : payloads) {
+            Object documentNameObj = payload.get("documentName");
+            Object pageNumberObj = payload.get("pageNumber");
+            if (documentNameObj == null || pageNumberObj == null) {
+                continue;
+            }
+            String documentName = String.valueOf(documentNameObj);
+            int pageNumber = ((Number) pageNumberObj).intValue();
+
+            pageNumbersByDocument.computeIfAbsent(documentName, key -> new TreeSet<>()).add(pageNumber);
+            chunkCountByDocument.merge(documentName, 1, Integer::sum);
+        }
+
+        List<DocumentSummary> summaries = new ArrayList<>();
+        for (String documentName : pageNumbersByDocument.keySet()) {
+            summaries.add(new DocumentSummary(
+                    documentName,
+                    pageNumbersByDocument.get(documentName).size(),
+                    chunkCountByDocument.get(documentName)
+            ));
+        }
+        return summaries;
     }
 
     @SuppressWarnings("unchecked")
@@ -166,5 +224,20 @@ public class RagService {
     private double scoreOf(Map<String, Object> result) {
         Object score = result.get("score");
         return score == null ? 0.0 : ((Number) score).doubleValue();
+    }
+
+    private static String sha256Hex(byte[] data) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = digest.digest(data);
+            StringBuilder hex = new StringBuilder(hashBytes.length * 2);
+            for (byte b : hashBytes) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException e) {
+            // SHA-256 is guaranteed to be available on every standard JVM.
+            throw new IllegalStateException("SHA-256 algorithm not available", e);
+        }
     }
 }

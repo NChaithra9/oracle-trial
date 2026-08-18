@@ -1,10 +1,94 @@
+:root {
+  /* --- Color tokens (dark theme) --- */
+  --color-bg: #0b0d12;
+  --color-bg-chrome: #111319;
+  --color-surface: #171a23;
+  --color-surface-muted: #1d212c;
+  --color-border: #262b38;
+  --color-border-strong: #363e4f;
+
+  --color-text: #e7e9ee;
+  --color-text-muted: #94a0b4;
+  --color-text-faint: #5b6474;
+
+  --color-primary: #818cf8;
+  --color-primary-dark: #6366f1;
+  --color-primary-light: rgba(129, 140, 248, 0.14);
+  --color-primary-text: #a5b4fc;
+
+  --color-success: #4ade80;
+  --color-success-bg: rgba(74, 222, 128, 0.12);
+  --color-warning: #fbbf24;
+  --color-warning-bg: rgba(251, 191, 36, 0.12);
+  --color-danger: #f87171;
+  --color-danger-bg: rgba(248, 113, 113, 0.12);
+
+  /* --- Shape / elevation tokens --- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.45);
+}
+
 * {
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
-  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background: #0f1117;
-  color: #e7e9ee;
+  padding: 0;
+}
+
+body {
+  font-family: "Inter", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* Dark, unobtrusive scrollbars (WebKit) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-faint);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

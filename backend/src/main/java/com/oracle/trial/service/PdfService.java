@@ -4,7 +4,6 @@ import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
@@ -19,12 +18,13 @@ import java.util.Map;
 public class PdfService {
 
     /**
+     * @param pdfBytes the raw bytes of the uploaded PDF
      * @return a map of pageNumber (1-based) -> extracted text for that page
      */
-    public Map<Integer, String> extractTextByPage(MultipartFile file) throws IOException {
+    public Map<Integer, String> extractTextByPage(byte[] pdfBytes) throws IOException {
         Map<Integer, String> pageTextMap = new LinkedHashMap<>();
 
-        try (PDDocument document = Loader.loadPDF(file.getBytes())) {
+        try (PDDocument document = Loader.loadPDF(pdfBytes)) {
             int totalPages = document.getNumberOfPages();
             PDFTextStripper stripper = new PDFTextStripper();
 
