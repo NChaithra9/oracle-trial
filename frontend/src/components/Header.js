@@ -1,19 +1,12 @@
 import React from "react";
 import { Database } from "lucide-react";
 
-const STATUS_LABEL = {
-  checking: "Checking...",
-  online: "Online",
-  offline: "Backend unreachable",
-};
-
 /**
- * Slim top bar: app name/subtitle on the left, live backend status +
- * indexed document count on the right. The status is a real signal, not
- * decoration - it reflects whether the last call to GET /api/documents
- * (polled periodically by App.js) actually succeeded.
+ * Slim top bar: app name/subtitle on the left, live indexed document count
+ * on the right (from the same `documents` list App.js already loads via
+ * GET /api/documents).
  */
-export default function Header({ documentCount, backendStatus }) {
+export default function Header({ documentCount }) {
   return (
     <header className="topbar">
       <div className="topbar-inner">
@@ -23,11 +16,6 @@ export default function Header({ documentCount, backendStatus }) {
         </div>
 
         <div className="topbar-right">
-          <div className="status-indicator" title={STATUS_LABEL[backendStatus]}>
-            <span className={`status-dot status-dot-${backendStatus}`} />
-            <span className="status-text">{STATUS_LABEL[backendStatus]}</span>
-          </div>
-
           <div className="topbar-status">
             <Database size={15} strokeWidth={2} />
             <span>

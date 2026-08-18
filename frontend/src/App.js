@@ -5,26 +5,26 @@ import PdfUpload from "./components/PdfUpload";
 import QuestionBox from "./components/QuestionBox";
 import AnswerDisplay from "./components/AnswerDisplay";
 import Sidebar from "./components/Sidebar";
-import DocumentDetailsModal from "./components/DocumentDetailsModal";
 import { askQuestion, fetchDocuments } from "./api";
 
-const RECENT_QUESTIONS_KEY = "oracleTrial.recentQuestions";
-const MAX_RECENT_QUESTIONS = 8;
+const QUESTIONS_BY_DOCUMENT_KEY = "oracleTrial.questionsByDocument";
+const ALL_DOCUMENTS_KEY = "All Documents";
+const MAX_QUESTIONS_PER_DOCUMENT = 8;
 const BACKEND_POLL_INTERVAL_MS = 30000;
 
-function loadRecentQuestions() {
+function loadQuestionsByDocument() {
   try {
-    const raw = window.localStorage.getItem(RECENT_QUESTIONS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    const raw = window.localStorage.getItem(QUESTIONS_BY_DOCUMENT_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
   } catch {
-    return [];
+    return {};
   }
 }
 
-function saveRecentQuestions(questions) {
+function saveQuestionsByDocument(map) {
   try {
-    window.localStorage.setItem(RECENT_QUESTIONS_KEY, JSON.stringify(questions));
+    window.localStorage.setItem(QUESTIONS_BY_DOCUMENT_KEY, JSON.stringify(map));
   } catch {
     // Non-fatal - history just won't persist across reloads in this case.
   }
@@ -33,8 +33,7 @@ function saveRecentQuestions(questions) {
 export default function App() {
   const [documents, setDocuments] = useState([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(true);
-  const [backendStatus, setBackendStatus] = useState("checking");
-  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [selectedDocumentName, setSelectedDocumentName] = useState(null);
 
   const [question, setQuestion] = useState("");
   const [lastQuestion, setLastQuestion] = useState("");
@@ -43,16 +42,14 @@ export default function App() {
   const [isAsking, setIsAsking] = useState(false);
   const [error, setError] = useState("");
 
-  const [recentQuestions, setRecentQuestions] = useState(loadRecentQuestions);
+  const [questionsByDocument, setQuestionsByDocument] = useState(loadQuestionsByDocument);
 
   const refreshDocuments = useCallback(async ({ silent } = {}) => {
     if (!silent) setIsLoadingDocuments(true);
     try {
       const docs = await fetchDocuments();
       setDocuments(docs);
-      setBackendStatus("online");
     } catch (err) {
-      setBackendStatus("offline");
       if (!silent) console.error("Failed to load documents:", err.message);
     } finally {
       if (!silent) setIsLoadingDocuments(false);
@@ -61,8 +58,8 @@ export default function App() {
 
   // Load the document list once on startup, so the sidebar reflects
   // whatever is already indexed in Qdrant even after a page refresh. Then
-  // poll quietly in the background so the online/offline indicator and
-  // document counts stay current without the user doing anything.
+  // poll quietly in the background so document counts stay current without
+  // the user doing anything.
   useEffect(() => {
     refreshDocuments();
     const interval = setInterval(() => refreshDocuments({ silent: true }), BACKEND_POLL_INTERVAL_MS);
@@ -78,10 +75,13 @@ export default function App() {
   }
 
   function rememberQuestion(q) {
-    setRecentQuestions((prev) => {
-      const withoutDuplicate = prev.filter((existing) => existing !== q);
-      const updated = [q, ...withoutDuplicate].slice(0, MAX_RECENT_QUESTIONS);
-      saveRecentQuestions(updated);
+    const key = selectedDocumentName || ALL_DOCUMENTS_KEY;
+    setQuestionsByDocument((prev) => {
+      const existingForKey = prev[key] || [];
+      const withoutDuplicate = existingForKey.filter((existing) => existing !== q);
+      const updatedForKey = [q, ...withoutDuplicate].slice(0, MAX_QUESTIONS_PER_DOCUMENT);
+      const updated = { ...prev, [key]: updatedForKey };
+      saveQuestionsByDocument(updated);
       return updated;
     });
   }
@@ -110,22 +110,21 @@ export default function App() {
     focusQuestionBox();
   }
 
-  function handleAskAboutDocument(documentName) {
-    setQuestion(`Regarding "${documentName}", `);
-    setSelectedDocument(null);
-    focusQuestionBox();
+  function handleSelectDocument(documentName) {
+    setSelectedDocumentName((prev) => (prev === documentName ? null : documentName));
   }
 
   return (
     <div className="app-shell">
-      <Header documentCount={documents.length} backendStatus={backendStatus} />
+      <Header documentCount={documents.length} />
 
       <div className="app-body">
         <Sidebar
           documents={documents}
           isLoading={isLoadingDocuments}
-          onSelectDocument={setSelectedDocument}
-          recentQuestions={recentQuestions}
+          selectedDocumentName={selectedDocumentName}
+          onSelectDocument={handleSelectDocument}
+          questionsByDocument={questionsByDocument}
           onSelectRecentQuestion={handleSelectRecentQuestion}
         />
 
@@ -151,14 +150,6 @@ export default function App() {
           </div>
         </main>
       </div>
-
-      {selectedDocument && (
-        <DocumentDetailsModal
-          document={selectedDocument}
-          onClose={() => setSelectedDocument(null)}
-          onAskAboutDocument={handleAskAboutDocument}
-        />
-      )}
     </div>
   );
 }

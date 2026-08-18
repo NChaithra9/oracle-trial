@@ -4,6 +4,8 @@ import com.oracle.trial.model.AnswerResponse;
 import com.oracle.trial.model.Citation;
 import com.oracle.trial.model.DocumentSummary;
 import com.oracle.trial.model.UploadResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,16 +32,21 @@ import java.util.UUID;
 @Service
 public class RagService {
 
+    private static final Logger log = LoggerFactory.getLogger(RagService.class);
+
     private final PdfService pdfService;
     private final ChunkingService chunkingService;
     private final EmbeddingService embeddingService;
     private final QdrantService qdrantService;
     private final AnswerService answerService;
+    private final ImageCaptionService imageCaptionService;
 
     private final int chunkSize;
     private final int chunkOverlap;
     private final int topK;
     private final double relevanceRatio;
+    private final boolean imageCaptioningEnabled;
+    private final int imageCaptioningMinTextLength;
 
     public RagService(
             PdfService pdfService,
@@ -47,20 +54,26 @@ public class RagService {
             EmbeddingService embeddingService,
             QdrantService qdrantService,
             AnswerService answerService,
+            ImageCaptionService imageCaptionService,
             @Value("${app.chunk.size}") int chunkSize,
             @Value("${app.chunk.overlap}") int chunkOverlap,
             @Value("${app.top-k}") int topK,
-            @Value("${app.relevance-ratio}") double relevanceRatio
+            @Value("${app.relevance-ratio}") double relevanceRatio,
+            @Value("${app.image-captioning.enabled}") boolean imageCaptioningEnabled,
+            @Value("${app.image-captioning.min-text-length}") int imageCaptioningMinTextLength
     ) {
         this.pdfService = pdfService;
         this.chunkingService = chunkingService;
         this.embeddingService = embeddingService;
         this.qdrantService = qdrantService;
         this.answerService = answerService;
+        this.imageCaptionService = imageCaptionService;
         this.chunkSize = chunkSize;
         this.chunkOverlap = chunkOverlap;
         this.topK = topK;
         this.relevanceRatio = relevanceRatio;
+        this.imageCaptioningEnabled = imageCaptioningEnabled;
+        this.imageCaptioningMinTextLength = imageCaptioningMinTextLength;
     }
 
     public UploadResponse processUpload(MultipartFile file) throws IOException {
@@ -87,7 +100,32 @@ public class RagService {
         int chunkCount = 0;
         for (Map.Entry<Integer, String> pageEntry : pageTextByNumber.entrySet()) {
             int pageNumber = pageEntry.getKey();
-            List<String> chunks = chunkingService.chunkText(pageEntry.getValue(), chunkSize, chunkOverlap);
+            String pageText = pageEntry.getValue();
+
+            // A page with little or no extractable text is usually a scanned
+            // page, a photo, or mostly a chart/diagram - PDFBox can't read
+            // any of that. As a simple fallback, render the page as an image
+            // and ask the same OpenAI chat model (it understands images too)
+            // to describe what's on it. That description is then chunked and
+            // embedded exactly like normal page text, so it becomes
+            // searchable and citable the same way.
+            if (imageCaptioningEnabled && pageText.length() < imageCaptioningMinTextLength) {
+                try {
+                    byte[] pageImage = pdfService.renderPageAsPng(fileBytes, pageNumber);
+                    String imageDescription = imageCaptionService.describeImage(pageImage);
+                    pageText = pageText.isBlank()
+                            ? imageDescription
+                            : pageText + "\n\n" + imageDescription;
+                } catch (Exception e) {
+                    // Captioning is a best-effort enhancement - if it fails for
+                    // any reason, fall back to whatever text was already
+                    // extracted rather than failing the whole upload.
+                    log.warn("Image captioning failed for '{}' page {}: {}",
+                            documentName, pageNumber, e.getMessage());
+                }
+            }
+
+            List<String> chunks = chunkingService.chunkText(pageText, chunkSize, chunkOverlap);
 
             for (int chunkIndex = 0; chunkIndex < chunks.size(); chunkIndex++) {
                 String chunkText = chunks.get(chunkIndex);

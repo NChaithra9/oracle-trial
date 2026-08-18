@@ -5,44 +5,37 @@ import {
   FileText,
   Loader2,
   Search,
-  History,
   Info,
+  ChevronRight,
+  ChevronDown,
 } from "lucide-react";
 import AboutModal from "./AboutModal";
 
 /**
- * Left-hand app sidebar: branding, at-a-glance stats, a search box over the
- * document list, the list of documents indexed in Qdrant (clickable to open
- * details), a short history of recently asked questions, and an About
- * link at the bottom. All document/stat data comes straight from the
- * `documents` prop (from GET /api/documents) - nothing here is fabricated.
+ * Left-hand app sidebar: branding, a search box over the document list, and
+ * the list of documents indexed in Qdrant. Each document is collapsible -
+ * clicking it selects/highlights it and expands a list of questions
+ * previously asked while that document was selected (tracked client-side
+ * in App.js and passed in here as `questionsByDocument`). All document
+ * data still comes straight from the `documents` prop (GET /api/documents)
+ * - nothing here is fabricated.
  */
 export default function Sidebar({
   documents,
   isLoading,
+  selectedDocumentName,
   onSelectDocument,
-  recentQuestions,
+  questionsByDocument,
   onSelectRecentQuestion,
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAboutOpen, setIsAboutOpen] = useState(false);
-
-  const stats = useMemo(
-    () => ({
-      documents: documents.length,
-      pages: documents.reduce((sum, d) => sum + (d.pageCount || 0), 0),
-      chunks: documents.reduce((sum, d) => sum + (d.chunkCount || 0), 0),
-    }),
-    [documents]
-  );
 
   const filteredDocuments = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return documents;
     return documents.filter((d) => d.documentName.toLowerCase().includes(term));
   }, [documents, searchTerm]);
-
-  const remaining = Math.max(0, 5 - documents.length);
 
   return (
     <aside className="sidebar">
@@ -57,27 +50,10 @@ export default function Sidebar({
       </div>
 
       <div className="sidebar-scroll">
-        {/* Knowledge base stats */}
-        <div className="stat-tiles">
-          <div className="stat-tile">
-            <div className="stat-tile-value">{stats.documents}</div>
-            <div className="stat-tile-label">Documents</div>
-          </div>
-          <div className="stat-tile">
-            <div className="stat-tile-value">{stats.pages}</div>
-            <div className="stat-tile-label">Pages</div>
-          </div>
-          <div className="stat-tile">
-            <div className="stat-tile-value">{stats.chunks}</div>
-            <div className="stat-tile-label">Chunks</div>
-          </div>
-        </div>
-
-        {/* Knowledge base list */}
         <div className="sidebar-section">
           <div className="sidebar-heading">
             <FolderOpen size={15} strokeWidth={2} />
-            <span>Knowledge base</span>
+            <span>Documents</span>
           </div>
 
           {documents.length > 0 && (
@@ -101,8 +77,9 @@ export default function Sidebar({
 
           {!isLoading && documents.length === 0 && (
             <div className="sidebar-empty">
-              <FileText size={26} strokeWidth={1.5} className="sidebar-empty-icon" />
-              <p className="muted">No documents yet. Upload a PDF to get started.</p>
+              <FolderOpen size={26} strokeWidth={1.5} className="sidebar-empty-icon" />
+              <p className="muted">No documents indexed yet.</p>
+              <p className="muted">Upload a PDF to get started.</p>
             </div>
           )}
 
@@ -112,71 +89,61 @@ export default function Sidebar({
 
           {filteredDocuments.length > 0 && (
             <ul className="sidebar-list">
-              {filteredDocuments.map((doc) => (
-                <li key={doc.documentName}>
-                  <button
-                    type="button"
-                    className="sidebar-doc-button"
-                    onClick={() => onSelectDocument(doc)}
+              {filteredDocuments.map((doc) => {
+                const isExpanded = doc.documentName === selectedDocumentName;
+                const docQuestions = questionsByDocument[doc.documentName] || [];
+
+                return (
+                  <li
+                    key={doc.documentName}
+                    className={`sidebar-doc-item ${isExpanded ? "sidebar-doc-item-expanded" : ""}`}
                   >
-                    <FileText size={16} strokeWidth={2} className="sidebar-doc-icon" />
-                    <div className="sidebar-doc-info">
-                      <div className="sidebar-doc-name">{doc.documentName}</div>
-                      <div className="sidebar-doc-meta">
-                        <span className="badge badge-neutral">
-                          {doc.pageCount} page{doc.pageCount === 1 ? "" : "s"}
-                        </span>
-                        <span className="badge badge-neutral">
+                    <button
+                      type="button"
+                      className="sidebar-doc-button"
+                      onClick={() => onSelectDocument(doc.documentName)}
+                      aria-expanded={isExpanded}
+                    >
+                      <FileText size={16} strokeWidth={2} className="sidebar-doc-icon" />
+                      <div className="sidebar-doc-info">
+                        <div className="sidebar-doc-name">{doc.documentName}</div>
+                        <div className="sidebar-doc-meta">
+                          {doc.pageCount} page{doc.pageCount === 1 ? "" : "s"} ·{" "}
                           {doc.chunkCount} chunk{doc.chunkCount === 1 ? "" : "s"}
-                        </span>
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+                      {isExpanded ? (
+                        <ChevronDown size={16} strokeWidth={2} className="sidebar-doc-chevron" />
+                      ) : (
+                        <ChevronRight size={16} strokeWidth={2} className="sidebar-doc-chevron" />
+                      )}
+                    </button>
 
-          {documents.length > 0 && (
-            <div className="sidebar-progress">
-              <div className="sidebar-progress-track">
-                <div
-                  className="sidebar-progress-fill"
-                  style={{ width: `${Math.min(100, (documents.length / 5) * 100)}%` }}
-                />
-              </div>
-              <p className="muted sidebar-hint">
-                {remaining > 0
-                  ? `Add ${remaining} more document${remaining === 1 ? "" : "s"} to reach the recommended 5+.`
-                  : "5+ documents indexed — nice knowledge base."}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Recent questions */}
-        <div className="sidebar-section">
-          <div className="sidebar-heading">
-            <History size={15} strokeWidth={2} />
-            <span>Recent questions</span>
-          </div>
-
-          {recentQuestions.length === 0 ? (
-            <p className="muted sidebar-hint">Questions you ask will show up here.</p>
-          ) : (
-            <ul className="recent-questions-list">
-              {recentQuestions.map((q, index) => (
-                <li key={index}>
-                  <button
-                    type="button"
-                    className="recent-question-item"
-                    onClick={() => onSelectRecentQuestion(q)}
-                    title={q}
-                  >
-                    {q}
-                  </button>
-                </li>
-              ))}
+                    {isExpanded && (
+                      <div className="sidebar-doc-questions">
+                        {docQuestions.length === 0 ? (
+                          <p className="muted sidebar-hint">No questions asked yet.</p>
+                        ) : (
+                          <ul className="recent-questions-list">
+                            {docQuestions.map((q, index) => (
+                              <li key={index}>
+                                <button
+                                  type="button"
+                                  className="recent-question-item"
+                                  onClick={() => onSelectRecentQuestion(q)}
+                                  title={q}
+                                >
+                                  {q}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
