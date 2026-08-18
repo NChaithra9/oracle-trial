@@ -65,13 +65,26 @@ export async function askQuestion(question) {
 // Fetches the list of documents already indexed in Qdrant, straight from
 // the backend - this is what makes the sidebar survive a page refresh
 // instead of forgetting everything that isn't in React state anymore.
-// Also doubles as the backend "health check" - if this call fails, the
-// topbar's online/offline indicator reflects that.
 export async function fetchDocuments() {
   const response = await fetch("/api/documents");
   const data = await response.json();
   if (!response.ok) {
     throw new Error(data.error || "Failed to load documents");
+  }
+  return data;
+}
+
+// Permanently deletes a document and all of its chunks/vectors from Qdrant
+// (DELETE /api/documents/{documentName}). The document name is URL-encoded
+// since it usually contains a ".pdf" extension and can contain spaces.
+export async function deleteDocument(documentName) {
+  const response = await fetch(`/api/documents/${encodeURIComponent(documentName)}`, {
+    method: "DELETE",
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to delete document");
   }
   return data;
 }

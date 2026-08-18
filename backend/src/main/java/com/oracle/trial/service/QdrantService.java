@@ -23,6 +23,7 @@ import java.util.Map;
  *  - POST /collections/{name}/points/query    -> similarity search
  *  - POST /collections/{name}/points/count    -> count points matching a filter
  *  - POST /collections/{name}/points/scroll   -> page through all stored points
+ *  - POST /collections/{name}/points/delete   -> delete points matching a filter
  */
 @Service
 public class QdrantService {
@@ -158,6 +159,29 @@ public class QdrantService {
         Map<String, Object> result = (Map<String, Object>) response.get("result");
         Object count = result.get("count");
         return count == null ? 0 : ((Number) count).longValue();
+    }
+
+    /**
+     * Deletes every stored point whose payload has the given field equal to
+     * the given value. Used to permanently remove a document (all of its
+     * chunks/vectors) from Qdrant when the user deletes it from the sidebar -
+     * this is a real deletion from the vector database, not just something
+     * hidden in the UI.
+     */
+    public void deletePointsByPayloadField(String key, String value) {
+        Map<String, Object> filter = Map.of(
+                "must", List.of(
+                        Map.of("key", key, "match", Map.of("value", value))
+                )
+        );
+        Map<String, Object> body = Map.of("filter", filter);
+
+        restClient.post()
+                .uri("/collections/{name}/points/delete?wait=true", collectionName)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .toBodilessEntity();
     }
 
     /**

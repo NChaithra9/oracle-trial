@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Sparkles,
   FolderOpen,
@@ -8,8 +8,12 @@ import {
   Info,
   ChevronRight,
   ChevronDown,
+  MoreVertical,
+  MessageSquarePlus,
+  Trash2,
 } from "lucide-react";
 import AboutModal from "./AboutModal";
+import Modal from "./Modal";
 
 /**
  * Left-hand app sidebar: branding, a search box over the document list, and
@@ -19,6 +23,12 @@ import AboutModal from "./AboutModal";
  * in App.js and passed in here as `questionsByDocument`). All document
  * data still comes straight from the `documents` prop (GET /api/documents)
  * - nothing here is fabricated.
+ *
+ * Each document also has a small "..." menu with three actions: view
+ * details (opens DocumentDetailsModal via `onViewDetails`), ask about this
+ * document (`onAskAboutDocument`), and delete document (`onDeleteDocument`,
+ * which actually calls the backend DELETE endpoint and removes the
+ * document's vectors from Qdrant - confirmed here first).
  */
 export default function Sidebar({
   documents,
@@ -27,15 +37,76 @@ export default function Sidebar({
   onSelectDocument,
   questionsByDocument,
   onSelectRecentQuestion,
+  onViewDetails,
+  onAskAboutDocument,
+  onDeleteDocument,
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+
+  const [openMenuFor, setOpenMenuFor] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  const menuAreaRef = useRef(null);
+
+  // Close the "..." dropdown when clicking anywhere outside it.
+  useEffect(() => {
+    if (!openMenuFor) return undefined;
+    function handleClickOutside(event) {
+      if (!menuAreaRef.current || !menuAreaRef.current.contains(event.target)) {
+        setOpenMenuFor(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [openMenuFor]);
 
   const filteredDocuments = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     if (!term) return documents;
     return documents.filter((d) => d.documentName.toLowerCase().includes(term));
   }, [documents, searchTerm]);
+
+  function closeMenu() {
+    setOpenMenuFor(null);
+  }
+
+  function handleViewDetailsClick(doc) {
+    closeMenu();
+    onViewDetails(doc);
+  }
+
+  function handleAskAboutDocumentClick(documentName) {
+    closeMenu();
+    onAskAboutDocument(documentName);
+  }
+
+  function handleDeleteClick(documentName) {
+    closeMenu();
+    setDeleteError("");
+    setPendingDelete(documentName);
+  }
+
+  function closeDeleteConfirm() {
+    if (isDeleting) return;
+    setPendingDelete(null);
+    setDeleteError("");
+  }
+
+  async function handleConfirmDelete() {
+    setIsDeleting(true);
+    setDeleteError("");
+    try {
+      await onDeleteDocument(pendingDelete);
+      setPendingDelete(null);
+    } catch (err) {
+      setDeleteError(err.message || "Failed to delete this document.");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
 
   return (
     <aside className="sidebar">
@@ -92,32 +163,83 @@ export default function Sidebar({
               {filteredDocuments.map((doc) => {
                 const isExpanded = doc.documentName === selectedDocumentName;
                 const docQuestions = questionsByDocument[doc.documentName] || [];
+                const isMenuOpen = openMenuFor === doc.documentName;
 
                 return (
                   <li
                     key={doc.documentName}
                     className={`sidebar-doc-item ${isExpanded ? "sidebar-doc-item-expanded" : ""}`}
                   >
-                    <button
-                      type="button"
-                      className="sidebar-doc-button"
-                      onClick={() => onSelectDocument(doc.documentName)}
-                      aria-expanded={isExpanded}
-                    >
-                      <FileText size={16} strokeWidth={2} className="sidebar-doc-icon" />
-                      <div className="sidebar-doc-info">
-                        <div className="sidebar-doc-name">{doc.documentName}</div>
-                        <div className="sidebar-doc-meta">
-                          {doc.pageCount} page{doc.pageCount === 1 ? "" : "s"} ·{" "}
-                          {doc.chunkCount} chunk{doc.chunkCount === 1 ? "" : "s"}
+                    <div className="sidebar-doc-row">
+                      <button
+                        type="button"
+                        className="sidebar-doc-button"
+                        onClick={() => onSelectDocument(doc.documentName)}
+                        aria-expanded={isExpanded}
+                      >
+                        <FileText size={16} strokeWidth={2} className="sidebar-doc-icon" />
+                        <div className="sidebar-doc-info">
+                          <div className="sidebar-doc-name">{doc.documentName}</div>
+                          <div className="sidebar-doc-meta">
+                            {doc.pageCount} page{doc.pageCount === 1 ? "" : "s"} ·{" "}
+                            {doc.chunkCount} chunk{doc.chunkCount === 1 ? "" : "s"}
+                          </div>
                         </div>
+                        {isExpanded ? (
+                          <ChevronDown size={16} strokeWidth={2} className="sidebar-doc-chevron" />
+                        ) : (
+                          <ChevronRight size={16} strokeWidth={2} className="sidebar-doc-chevron" />
+                        )}
+                      </button>
+
+                      <div className="sidebar-doc-menu" ref={isMenuOpen ? menuAreaRef : null}>
+                        <button
+                          type="button"
+                          className="sidebar-doc-menu-button"
+                          aria-label={`More actions for ${doc.documentName}`}
+                          aria-haspopup="true"
+                          aria-expanded={isMenuOpen}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOpenMenuFor((prev) => (prev === doc.documentName ? null : doc.documentName));
+                          }}
+                        >
+                          <MoreVertical size={16} strokeWidth={2} />
+                        </button>
+
+                        {isMenuOpen && (
+                          <div className="sidebar-doc-menu-dropdown" role="menu">
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="sidebar-doc-menu-item"
+                              onClick={() => handleViewDetailsClick(doc)}
+                            >
+                              <Info size={14} strokeWidth={2} />
+                              View details
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="sidebar-doc-menu-item"
+                              onClick={() => handleAskAboutDocumentClick(doc.documentName)}
+                            >
+                              <MessageSquarePlus size={14} strokeWidth={2} />
+                              Ask about document
+                            </button>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              className="sidebar-doc-menu-item sidebar-doc-menu-item-danger"
+                              onClick={() => handleDeleteClick(doc.documentName)}
+                            >
+                              <Trash2 size={14} strokeWidth={2} />
+                              Delete document
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      {isExpanded ? (
-                        <ChevronDown size={16} strokeWidth={2} className="sidebar-doc-chevron" />
-                      ) : (
-                        <ChevronRight size={16} strokeWidth={2} className="sidebar-doc-chevron" />
-                      )}
-                    </button>
+                    </div>
 
                     {isExpanded && (
                       <div className="sidebar-doc-questions">
@@ -157,6 +279,34 @@ export default function Sidebar({
       </div>
 
       {isAboutOpen && <AboutModal onClose={() => setIsAboutOpen(false)} />}
+
+      {pendingDelete && (
+        <Modal title="Delete document?" onClose={closeDeleteConfirm}>
+          <p>
+            Delete "{pendingDelete}"? This will remove the document and its
+            indexed content. This cannot be undone.
+          </p>
+          {deleteError && <p className="error">{deleteError}</p>}
+          <div className="confirm-actions">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={closeDeleteConfirm}
+              disabled={isDeleting}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-danger"
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </button>
+          </div>
+        </Modal>
+      )}
     </aside>
   );
 }

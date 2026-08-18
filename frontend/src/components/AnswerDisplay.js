@@ -1,17 +1,35 @@
-import React from "react";
-import { FileText, SearchX, MessageCircleQuestion, Loader2, Sparkles } from "lucide-react";
+import React, { useState } from "react";
+import {
+  FileText,
+  SearchX,
+  MessageCircleQuestion,
+  Loader2,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 
 const NOT_FOUND_TEXT = "I couldn't find this information in the provided documents.";
 
 /**
  * Shows the most recent answer along with its source citations (document
- * name + page number). Unlike before, this card is always visible - it now
- * has a distinct empty state (nothing asked yet), loading state (waiting on
- * the backend), not-found state, and the normal answer+citations state.
+ * name + page number). Each citation card can be expanded to show the
+ * actual retrieved Qdrant chunk text ("excerpt") that the answer was based
+ * on - this comes straight from the backend's AnswerResponse.citations[].excerpt,
+ * never generated on the frontend.
  */
 export default function AnswerDisplay({ answer, citations, question, error, isAsking }) {
   const isNotFound = answer === NOT_FOUND_TEXT;
   const hasAskedBefore = Boolean(question);
+
+  // Keyed by citation index within the current answer - reset naturally
+  // whenever a new question is asked, since this component re-renders with
+  // a fresh `citations` array.
+  const [expandedIndex, setExpandedIndex] = useState(null);
+
+  function toggleCitation(index) {
+    setExpandedIndex((prev) => (prev === index ? null : index));
+  }
 
   return (
     <div className="card answer-card">
@@ -52,15 +70,43 @@ export default function AnswerDisplay({ answer, citations, question, error, isAs
             <div className="citations">
               <h3>Sources</h3>
               <div className="citation-cards">
-                {citations.map((citation, index) => (
-                  <div className="citation-card" key={index}>
-                    <span className="citation-card-icon">
-                      <FileText size={14} strokeWidth={2} />
-                    </span>
-                    <span className="citation-card-name">{citation.documentName}</span>
-                    <span className="citation-card-page">p.{citation.pageNumber}</span>
-                  </div>
-                ))}
+                {citations.map((citation, index) => {
+                  const isExpanded = expandedIndex === index;
+                  return (
+                    <div
+                      className={`citation-card ${isExpanded ? "citation-card-expanded" : ""}`}
+                      key={index}
+                    >
+                      <button
+                        type="button"
+                        className="citation-card-header"
+                        onClick={() => toggleCitation(index)}
+                        aria-expanded={isExpanded}
+                      >
+                        <span className="citation-card-icon">
+                          <FileText size={14} strokeWidth={2} />
+                        </span>
+                        <span className="citation-card-name">{citation.documentName}</span>
+                        <span className="citation-card-page">p.{citation.pageNumber}</span>
+                        {isExpanded ? (
+                          <ChevronUp size={14} strokeWidth={2} className="citation-card-chevron" />
+                        ) : (
+                          <ChevronDown size={14} strokeWidth={2} className="citation-card-chevron" />
+                        )}
+                      </button>
+
+                      {isExpanded && (
+                        <div className="citation-excerpt">
+                          {citation.excerpt ? (
+                            <p>&ldquo;{citation.excerpt}&rdquo;</p>
+                          ) : (
+                            <p className="muted">Source excerpt not available for this citation.</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

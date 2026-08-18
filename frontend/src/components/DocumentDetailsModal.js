@@ -1,15 +1,17 @@
 import React from "react";
-import { FileText, CheckCircle2, MessageSquarePlus } from "lucide-react";
+import { FileText, CheckCircle2, MessageSquarePlus, MessageSquare } from "lucide-react";
 import Modal from "./Modal";
 
 /**
- * Shows metadata for one document from the sidebar's list - all of it
- * derived from the same DocumentSummary the backend already returns via
- * GET /api/documents (documentName, pageCount, chunkCount). No new backend
- * calls are made here. "Indexed" is always true for anything in this list,
- * since the backend only lists documents it actually found in Qdrant.
+ * Shows metadata for one document from the sidebar's list - page/chunk
+ * counts come from the same DocumentSummary the backend already returns via
+ * GET /api/documents. "Questions asked" comes from the existing client-side
+ * question history (questionsByDocument, kept in localStorage since the
+ * backend doesn't track this) - no new backend call is made here.
+ * "Indexed" is always true for anything in this list, since the backend
+ * only lists documents it actually found in Qdrant.
  */
-export default function DocumentDetailsModal({ document, onClose, onAskAboutDocument }) {
+export default function DocumentDetailsModal({ document, questionsAskedCount, onClose, onAskAboutDocument }) {
   if (!document) return null;
 
   return (
@@ -23,8 +25,11 @@ export default function DocumentDetailsModal({ document, onClose, onAskAboutDocu
 
       <div className="detail-rows">
         <div className="detail-row">
-          <span className="muted">File name</span>
-          <span>{document.documentName}</span>
+          <span className="muted">Status</span>
+          <span className="status-badge-indexed">
+            <CheckCircle2 size={13} strokeWidth={2.25} />
+            Indexed
+          </span>
         </div>
         <div className="detail-row">
           <span className="muted">Pages</span>
@@ -35,11 +40,11 @@ export default function DocumentDetailsModal({ document, onClose, onAskAboutDocu
           <span>{document.chunkCount}</span>
         </div>
         <div className="detail-row">
-          <span className="muted">Status</span>
-          <span className="status-badge-indexed">
-            <CheckCircle2 size={13} strokeWidth={2.25} />
-            Indexed
+          <span className="muted">
+            <MessageSquare size={13} strokeWidth={2.25} style={{ marginRight: 5, verticalAlign: -2 }} />
+            Questions asked
           </span>
+          <span>{questionsAskedCount || 0}</span>
         </div>
       </div>
 

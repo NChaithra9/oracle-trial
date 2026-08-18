@@ -5,7 +5,8 @@ import PdfUpload from "./components/PdfUpload";
 import QuestionBox from "./components/QuestionBox";
 import AnswerDisplay from "./components/AnswerDisplay";
 import Sidebar from "./components/Sidebar";
-import { askQuestion, fetchDocuments } from "./api";
+import DocumentDetailsModal from "./components/DocumentDetailsModal";
+import { askQuestion, deleteDocument, fetchDocuments } from "./api";
 
 const QUESTIONS_BY_DOCUMENT_KEY = "oracleTrial.questionsByDocument";
 const ALL_DOCUMENTS_KEY = "All Documents";
@@ -34,6 +35,7 @@ export default function App() {
   const [documents, setDocuments] = useState([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(true);
   const [selectedDocumentName, setSelectedDocumentName] = useState(null);
+  const [detailsDocument, setDetailsDocument] = useState(null);
 
   const [question, setQuestion] = useState("");
   const [lastQuestion, setLastQuestion] = useState("");
@@ -114,6 +116,34 @@ export default function App() {
     setSelectedDocumentName((prev) => (prev === documentName ? null : documentName));
   }
 
+  function handleAskAboutDocument(documentName) {
+    setQuestion(`Regarding "${documentName}", `);
+    setDetailsDocument(null);
+    focusQuestionBox();
+  }
+
+  // Permanently deletes a document: calls the backend DELETE endpoint (which
+  // removes every one of its vectors from Qdrant), then re-syncs the
+  // document list from the backend and cleans up anything kept client-side
+  // for it (its question history, and clearing it if it was selected/open
+  // in the details modal). Errors are left to propagate so the Sidebar's
+  // delete-confirmation dialog can show them.
+  async function handleDeleteDocument(documentName) {
+    await deleteDocument(documentName);
+    await refreshDocuments();
+
+    setQuestionsByDocument((prev) => {
+      if (!(documentName in prev)) return prev;
+      const updated = { ...prev };
+      delete updated[documentName];
+      saveQuestionsByDocument(updated);
+      return updated;
+    });
+
+    setSelectedDocumentName((prev) => (prev === documentName ? null : prev));
+    setDetailsDocument((prev) => (prev && prev.documentName === documentName ? null : prev));
+  }
+
   return (
     <div className="app-shell">
       <Header documentCount={documents.length} />
@@ -126,6 +156,9 @@ export default function App() {
           onSelectDocument={handleSelectDocument}
           questionsByDocument={questionsByDocument}
           onSelectRecentQuestion={handleSelectRecentQuestion}
+          onViewDetails={setDetailsDocument}
+          onAskAboutDocument={handleAskAboutDocument}
+          onDeleteDocument={handleDeleteDocument}
         />
 
         <main className="app-main">
@@ -150,6 +183,15 @@ export default function App() {
           </div>
         </main>
       </div>
+
+      {detailsDocument && (
+        <DocumentDetailsModal
+          document={detailsDocument}
+          questionsAskedCount={(questionsByDocument[detailsDocument.documentName] || []).length}
+          onClose={() => setDetailsDocument(null)}
+          onAskAboutDocument={handleAskAboutDocument}
+        />
+      )}
     </div>
   );
 }

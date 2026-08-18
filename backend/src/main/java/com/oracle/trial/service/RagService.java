@@ -7,15 +7,16 @@ import com.oracle.trial.model.UploadResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -207,7 +208,13 @@ public class RagService {
         List<Map<String, Object>> relevantResults = filterByRelevance(results);
 
         StringBuilder context = new StringBuilder();
-        Set<Citation> citations = new LinkedHashSet<>();
+
+        // Keyed by "documentName|pageNumber" instead of a plain Set<Citation>
+        // so that when more than one chunk comes from the same page, we keep
+        // the FIRST (highest-ranked) chunk's actual text as that citation's
+        // excerpt, rather than losing it or overwriting it with a lower-
+        // ranked chunk's text.
+        Map<String, Citation> citationsByKey = new LinkedHashMap<>();
 
         for (Map<String, Object> result : relevantResults) {
             Map<String, Object> payload = (Map<String, Object>) result.get("payload");
@@ -223,7 +230,8 @@ public class RagService {
                     .append(", page ").append(pageNumber).append("]\n")
                     .append(text).append("\n\n");
 
-            citations.add(new Citation(documentName, pageNumber));
+            String key = documentName + "|" + pageNumber;
+            citationsByKey.putIfAbsent(key, new Citation(documentName, pageNumber, text));
         }
 
         String answer = answerService.generateAnswer(question, context.toString());
@@ -234,7 +242,21 @@ public class RagService {
             return new AnswerResponse(AnswerService.NOT_FOUND_MESSAGE, List.of());
         }
 
-        return new AnswerResponse(answer, new ArrayList<>(citations));
+        return new AnswerResponse(answer, new ArrayList<>(citationsByKey.values()));
+    }
+
+    /**
+     * Deletes a document entirely: every chunk/vector belonging to it is
+     * removed from Qdrant, so it truly disappears rather than just being
+     * hidden in the UI. Throws a 404 if no such document is currently
+     * indexed, so the controller can report a clear "not found" error.
+     */
+    public void deleteDocument(String documentName) {
+        long existingChunks = qdrantService.countByPayloadField("documentName", documentName);
+        if (existingChunks == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found: " + documentName);
+        }
+        qdrantService.deletePointsByPayloadField("documentName", documentName);
     }
 
     /**
